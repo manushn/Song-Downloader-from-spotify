@@ -1,0 +1,82 @@
+#pip install youtube-search-python
+#pip install pytube
+#pip install spotipy
+# Replace the download path in line 33
+# Replace spotify credincials in line49
+
+from youtubesearchpython import VideosSearch
+from pytube import YouTube
+import os
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import re
+
+def get_youtube_link_by_name(song_name):
+    videos_search = VideosSearch(song_name, limit=1)
+    results = videos_search.result()
+
+    if results['result']:
+        video_link = results['result'][0]['link']
+        return video_link
+    else:
+        return None
+
+def download_ytvid_as_mp3(video_url, song_name):
+    try:
+        # Create a YouTube object
+        yt = YouTube(video_url)
+
+        # Get the highest resolution audio stream
+        audio_stream = yt.streams.filter(only_audio=True).first()
+
+        # Set the download path (change '/path/to/download' to your desired path)
+        download_path = ''
+        filepath = os.path.join(download_path, f"{song_name}.mp3")
+
+        # Download the audio stream as MP3
+        audio_stream.download(download_path)
+        
+        # Rename the downloaded file to have a .mp3 extension
+        os.rename(audio_stream.default_filename, filepath)
+
+        print(f"Download complete: {filepath}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+# Loop for continuous operation
+while True:
+    client_credentials_manager = SpotifyClientCredentials(client_id='', client_secret='')
+    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    playlist_uri = input("Paste the Spotify playlist or track link : ")
+
+    # Check if the input is a track URL
+    if re.match(r'https://open\.spotify\.com/track/', playlist_uri):
+        song_name = sp.track(playlist_uri)['name']
+        song_link = get_youtube_link_by_name(song_name)
+
+        if song_link:
+            print(f"The YouTube link for '{song_name}' is: {song_link}")
+            download_ytvid_as_mp3(song_link, song_name)
+        else:
+            print(f"No song found with the name '{song_name}'.")
+    else:
+        try:
+            results = sp.playlist_tracks(playlist_uri)
+            tracks = results['items']
+
+            for track in tracks:
+                song_name = track['track']['name']
+
+                if song_name.lower() == 'exit':
+                    break
+
+                song_link = get_youtube_link_by_name(song_name)
+
+                if song_link:
+                    print(f"The YouTube link for '{song_name}' is: {song_link}")
+                    download_ytvid_as_mp3(song_link, song_name)
+                else:
+                    print(f"No song found with the name '{song_name}'.")
+        except Exception as e:
+            print(f"Error: {e}")
